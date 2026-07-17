@@ -1,0 +1,117 @@
+name: VaultHR CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ══ STAGE 1: BUILD ══════════════════════════
+  build:
+    name: 🔨 Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install boto3 pytest
+
+      - name: Verify Lambda folders exist
+        run: |
+          echo "Checking Lambda source files..."
+          ls -la lambdas/upload/
+          ls -la lambdas/list/
+          ls -la lambdas/download/
+          ls -la lambdas/delete/
+          echo "✅ Build complete"
+
+  # ══ STAGE 2: TEST ═══════════════════════════
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pytest boto3
+
+      - name: Run unit tests
+        run: |
+          echo "Running unit tests..."
+          pytest tests/ -v --tb=short
+          echo "✅ All tests passed"
+
+  # ══ STAGE 3: DEPLOY ═════════════════════════
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy UploadFunction
+        run: |
+          cd lambdas/upload
+          zip -r ../../upload.zip .
+          cd ../..
+          aws lambda update-function-code \
+            --function-name UploadFunction \
+            --zip-file fileb://upload.zip \
+            --region ap-south-2
+          echo "✅ UploadFunction deployed"
+
+      - name: Deploy ListFilesFunction
+        run: |
+          cd lambdas/list
+          zip -r ../../list.zip .
+          cd ../..
+          aws lambda update-function-code \
+            --function-name ListFilesFunction \
+            --zip-file fileb://list.zip \
+            --region ap-south-2
+          echo "✅ ListFilesFunction deployed"
+
+      - name: Deploy DownloadFunction
+        run: |
+          cd lambdas/download
+          zip -r ../../download.zip .
+          cd ../..
+          aws lambda update-function-code \
+            --function-name DownloadFunction \
+            --zip-file fileb://download.zip \
+            --region ap-south-2
+          echo "✅ DownloadFunction deployed"
+
+      - name: Deploy DeleteFunction
+        run: |
+          cd lambdas/delete
+          zip -r ../../delete.zip .
+          cd ../..
+          aws lambda update-function-code \
+            --function-name DeleteFunction \
+            --zip-file fileb://delete.zip \
+            --region ap-south-2
+          echo "✅ DeleteFunction deployed"
+
+      - name: Deployment summary
+        run: echo "🚀 All 4 Lambda functions deployed successfully"
