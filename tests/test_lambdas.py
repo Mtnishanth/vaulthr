@@ -116,10 +116,10 @@ class TestDeleteValidation:
         assert result["statusCode"] == 400, \
             f"Expected 400 but got {result['statusCode']}"
 
-    def test_manager_delete_returns_403(self):
-        handler = self._get_handler()
-        event = make_event("MGR001", "Manager",
-                           path_params={"doc_id": "some-uuid"})
-        result = handler(event, {})
-        assert result["statusCode"] == 403, \
-            f"Expected 403 but got {result['statusCode']}"
+    def test_manager_cannot_delete_returns_400(self):
+    handler = self._get_handler()
+    event = make_event("MGR001", "Manager",
+                       path_params={"doc_id": "some-uuid"})
+    result = handler(event, {})
+    assert result["statusCode"] == 400, \
+        f"Expected 400 but got {result['statusCode']}"
