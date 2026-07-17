@@ -37,15 +37,20 @@ def lambda_handler(event, context):
 
     # ── STEP 3: Fetch the document from DynamoDB
     #    We need to know WHO owns it before deciding if deletion is allowed
+   # ── STEP 3: Role check FIRST — before hitting DynamoDB
+    if role == 'Manager':
+        return api_response(403, {
+            'error': 'Access denied — managers cannot delete documents'
+        })
+
+    # ── STEP 4: Fetch the document from DynamoDB
     table    = dynamodb.Table(METADATA_TABLE)
     response = table.get_item(Key={'document_id': doc_id})
     item     = response.get('Item')
 
-    # Document doesn't exist
     if not item:
         return api_response(404, {'error': 'Document not found'})
 
-    # Already deleted — nothing to do
     if item.get('is_deleted', False):
         return api_response(400, {'error': 'Document is already deleted'})
 
